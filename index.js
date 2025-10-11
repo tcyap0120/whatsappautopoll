@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, Poll } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const cron = require('node-cron');
 
@@ -86,9 +86,10 @@ async function sendPoll(retryCount = 0) {
         console.log(`   Options: ${pollOptions.join(', ')}`);
         
         // Send poll with timeout
-        const sendPromise = targetGroup.sendPoll(pollQuestion, pollOptions, {
+        const poll = new Poll(pollQuestion, pollOptions, {
             allowMultipleAnswers: false
         });
+        const sendPromise = targetGroup.sendMessage(poll);
         const sendTimeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout sending poll')), 20000)
         );
@@ -169,12 +170,6 @@ client.on('ready', () => {
     });
     
     console.log('Bot is running... Press Ctrl+C to stop.\n');
-        // TEST: Send poll in 10 seconds
-    console.log('\n🧪 Testing poll in 10 seconds...');
-    setTimeout(() => {
-        console.log('\n🧪 TEST: Sending poll now...');
-        sendPoll();
-    }, 10000);
 });
 
 // Helper function to show next scheduled time
