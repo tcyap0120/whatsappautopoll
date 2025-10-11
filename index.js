@@ -53,13 +53,23 @@ function getNextWednesday() {
     return `${day} ${month} Wed`;
 }
 
-// Function to send poll to the group
-async function sendPoll() {
+// Function to send poll to the group with retry logic
+async function sendPoll(retryCount = 0) {
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
+    
     try {
         console.log('\n🔍 Searching for group...');
         
-        // Get all chats
-        const chats = await client.getChats();
+        // Get all chats with timeout
+        const chatsPromise = client.getChats();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout getting chats')), 30000)
+        );
+        
+        const chats = await Promise.race([chatsPromise, timeoutPromise]);
+        
+        console.log(`📋 Found ${chats.length} chats total`);
         
         // Find the specific group
         const targetGroup = chats.find(chat => 
@@ -85,10 +95,15 @@ async function sendPoll() {
         console.log(`📊 Creating poll: "${pollQuestion}"`);
         console.log(`   Options: ${pollOptions.join(', ')}`);
         
-        // Send poll
-        await targetGroup.sendPoll(pollQuestion, pollOptions, {
+        // Send poll with timeout
+        const sendPromise = targetGroup.sendPoll(pollQuestion, pollOptions, {
             allowMultipleAnswers: false
         });
+        const sendTimeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout sending poll')), 20000)
+        );
+        
+        await Promise.race([sendPromise, sendTimeoutPromise]);
         
         const timestamp = new Date().toLocaleString('en-US', { 
             timeZone: 'Asia/Singapore',
@@ -99,7 +114,17 @@ async function sendPoll() {
         console.log(`✅ Poll sent successfully at ${timestamp}!\n`);
         
     } catch (error) {
-        console.error('❌ Error sending poll:', error.message);
+        console.error(`❌ Error sending poll (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+        
+        // Retry logic
+        if (retryCount < maxRetries) {
+            console.log(`⏳ Retrying in ${retryDelay/1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            return sendPoll(retryCount + 1);
+        } else {
+            console.error('❌ Max retries reached. Poll not sent.');
+            console.error('💡 Tip: Check if WhatsApp is still connected on your phone.');
+        }
     }
 }
 
