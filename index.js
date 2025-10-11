@@ -170,6 +170,12 @@ client.on('ready', () => {
     });
     
     console.log('Bot is running... Press Ctrl+C to stop.\n');
+        // TEST: Send poll in 10 seconds
+    console.log('\n🧪 Testing poll in 10 seconds...');
+    setTimeout(() => {
+        console.log('\n🧪 TEST: Sending poll now...');
+        sendPoll();
+    }, 10000);
 });
 
 // Helper function to show next scheduled time
