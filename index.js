@@ -150,7 +150,14 @@ client.on('ready', () => {
         timezone: "Asia/Singapore" // Adjust timezone as needed
     });
     
-    console.log('Bot is running... Press Ctrl+C to stop.\n');
+        console.log('Bot is running... Press Ctrl+C to stop.\n');
+    
+    // TEST: Send poll immediately on startup
+    console.log('\n🧪 Running test poll in 10 seconds...');
+    setTimeout(() => {
+        console.log('\n🧪 TEST MODE: Sending poll now...');
+        sendPoll();
+    }, 10000);
 });
 
 // Helper function to show next scheduled time
