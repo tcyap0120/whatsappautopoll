@@ -25,6 +25,7 @@ const client = new Client({
 // Configuration
 const CONFIG = {
     groupName: '🏸 Badminton 🔥',
+    groupId: '120363048770821369@g.us', // Your badminton group ID
     pollLocation: '@SLK',
     pollTime: '8-10pm',
     scheduleTime: '0 12 * * 6' // Every Saturday at 12:00 PM (cron format: minute hour day month weekday)
@@ -53,35 +54,24 @@ function getNextWednesday() {
     return `${day} ${month} Wed`;
 }
 
-// Function to send poll to the group with retry logic
+// Function to send poll using Group ID (fast, no search needed)
 async function sendPoll(retryCount = 0) {
     const maxRetries = 3;
     const retryDelay = 5000; // 5 seconds
     
     try {
-        console.log('\n🔍 Searching for group...');
+        if (!CONFIG.groupId) {
+            console.error('❌ No groupId configured! Please set CONFIG.groupId in the code.');
+            return;
+        }
         
-        // Get all chats with timeout
-        const chatsPromise = client.getChats();
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout getting chats')), 30000)
-        );
+        console.log('\n📤 Getting group by ID...');
         
-        const chats = await Promise.race([chatsPromise, timeoutPromise]);
+        // Get group directly by ID (much faster than searching all chats)
+        const targetGroup = await client.getChatById(CONFIG.groupId);
         
-        console.log(`📋 Found ${chats.length} chats total`);
-        
-        // Find the specific group
-        const targetGroup = chats.find(chat => 
-            chat.isGroup && chat.name === CONFIG.groupName
-        );
-        
-        if (!targetGroup) {
-            console.error(`❌ Group "${CONFIG.groupName}" not found!`);
-            console.log('\nAvailable groups:');
-            chats.filter(chat => chat.isGroup).forEach(group => {
-                console.log(`  - ${group.name}`);
-            });
+        if (!targetGroup || !targetGroup.isGroup) {
+            console.error(`❌ Group with ID "${CONFIG.groupId}" not found or is not a group!`);
             return;
         }
         
@@ -128,6 +118,25 @@ async function sendPoll(retryCount = 0) {
     }
 }
 
+// Helper function to list all groups and their IDs (run once to find your group)
+async function listAllGroups() {
+    try {
+        console.log('\n🔍 Fetching all groups...');
+        const chats = await client.getChats();
+        const groups = chats.filter(chat => chat.isGroup);
+        
+        console.log(`\n📋 Found ${groups.length} groups:\n`);
+        groups.forEach((group, index) => {
+            console.log(`${index + 1}. ${group.name}`);
+            console.log(`   ID: ${group.id._serialized}\n`);
+        });
+        
+        console.log('💡 Copy the ID of your target group and paste it into CONFIG.groupId\n');
+    } catch (error) {
+        console.error('❌ Error listing groups:', error.message);
+    }
+}
+
 // QR Code generation
 client.on('qr', (qr) => {
     console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
@@ -140,6 +149,15 @@ client.on('ready', () => {
     console.log('\n✅ WhatsApp client is ready!');
     console.log(`📅 Poll will be sent every Saturday at 12:00 PM`);
     console.log(`📍 Target group: ${CONFIG.groupName}`);
+    
+    // If no groupId configured, list all groups to help user find it
+    if (!CONFIG.groupId) {
+        console.log('\n⚠️  No groupId configured!');
+        console.log('Listing all groups so you can find the ID...\n');
+        setTimeout(() => listAllGroups(), 5000);
+        return;
+    }
+    
     console.log(`⏰ Next scheduled run: ${getNextScheduledTime()}\n`);
     
     // Schedule the poll to be sent every Saturday at 12 PM
@@ -150,12 +168,11 @@ client.on('ready', () => {
         timezone: "Asia/Singapore" // Adjust timezone as needed
     });
     
-        console.log('Bot is running... Press Ctrl+C to stop.\n');
-    
-    // TEST: Send poll immediately on startup
-    console.log('\n🧪 Running test poll in 10 seconds...');
+    console.log('Bot is running... Press Ctrl+C to stop.\n');
+        // TEST: Send poll in 10 seconds
+    console.log('\n🧪 Testing poll in 10 seconds...');
     setTimeout(() => {
-        console.log('\n🧪 TEST MODE: Sending poll now...');
+        console.log('\n🧪 TEST: Sending poll now...');
         sendPoll();
     }, 10000);
 });
